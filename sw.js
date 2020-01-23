@@ -14,15 +14,46 @@ urlsToCache = [
 ]
 
 self.addEventListener('install',e=>{
- 
+ e.waitUntil(
+  caches.open(CACHE_NAME)
+  .then(cache => {
+   return cache.addAll(urlsToCache)
+   .then(()=> self.skipWaiting())
+  })
+  .catch(err => console.log('cache error' , err))
+ )
 })
 
 // se activa cuando se queda sin conexion
 self.addEventListener('activate',e=>{
- 
+ const cacheWhitelist = [CACHE_NAME]
+ e.waitUntil(
+  caches.keys()
+  .then(cachesNames =>{
+   cachesNames.map(cacheName =>{
+    //eliminar del cache lo que cambio en el servidor
+    if (cacheWhitelist.indexOf(cacheName) === -1) {
+     return caches.delete(cacheName)
+    }
+   })
+  })
+  //activar el cache actual
+  .then(()=>self.clients.claim())
+ )
 })
 
 // para traerse los recursos, los compara con los que estan en cache
 self.addEventListener('fetch',e=>{
- 
+ //responde con el recurso en cache o desde el servidor
+ e.respondWith(
+  caches.match(e.request)
+  .then(res=>{
+   if(res){
+    //si esta en el cache retorna esa
+    return res
+   }
+   //si no, hace una peticion al servidor y retorna eso 
+   return fetch(e.request)
+  })
+ )
 })
